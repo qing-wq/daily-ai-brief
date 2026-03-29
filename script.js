@@ -145,10 +145,15 @@ async function loadArchive() {
   listEl.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>加载中...</p></div>';
   
   try {
+    // 优先使用CORS代理避免GitHub API速率限制
     const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DIGESTS_PATH}`;
-    let response = await fetch(apiUrl).catch(() => null);
+    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(apiUrl);
+    
+    let response = await fetch(proxyUrl).catch(() => null);
+    
+    // 如果代理失败，尝试直接调用API
     if (!response || !response.ok) {
-      response = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(apiUrl));
+      response = await fetch(apiUrl).catch(() => null);
     }
     
     if (!response || !response.ok) {
