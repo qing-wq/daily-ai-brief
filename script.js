@@ -72,8 +72,8 @@ function parseDigest(text) {
     if (currentBuilder && l) {
       // Skip section headers
       if (l.startsWith('## ') || l.startsWith('# ')) continue;
-      // Handle bold text - escape first, then apply markdown
-      let processed = escapeHtml(l).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      // Handle bold text - simple markdown processing without breaking HTML
+      let processed = l.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
       contentLines.push('<p>' + processed + '</p>');
     }
   }
