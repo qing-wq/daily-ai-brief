@@ -83,11 +83,11 @@ async function loadTodayDigest() {
   dateEl.textContent = formatDisplayDate(today);
   
   try {
-    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DIGESTS_PATH}/${today}.md`;
+    // Use download_url for raw content (avoids CORS issues)
+    const url = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/master/${DIGESTS_PATH}/${today}.md`;
     const response = await fetch(url);
     if (response.ok) {
-      const data = await response.json();
-      const content = atob(data.content);
+      const content = await response.text();
       contentEl.innerHTML = parseDigest(content);
     } else {
       contentEl.innerHTML = '<div class="loading"><p>今日简报尚未生成</p><p style="font-size: 13px; margin-top: 8px;">将在每天 10:30 自动更新</p></div>';
@@ -126,11 +126,11 @@ async function showDigest(date) {
   contentEl.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>加载中...</p></div>';
   
   try {
-    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DIGESTS_PATH}/${date}.md`;
+    // Use raw.githubusercontent.com for direct content access
+    const url = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/master/${DIGESTS_PATH}/${date}.md`;
     const response = await fetch(url);
     if (response.ok) {
-      const data = await response.json();
-      const content = atob(data.content);
+      const content = await response.text();
       contentEl.innerHTML = parseDigest(content);
     } else { contentEl.innerHTML = '<p class="loading">内容加载失败</p>'; }
   } catch (error) { contentEl.innerHTML = '<p class="loading">加载失败</p>'; }
