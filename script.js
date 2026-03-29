@@ -16,6 +16,12 @@ function formatDate(dateStr) {
   return date.toLocaleDateString('zh-CN', options);
 }
 
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 function parseDigest(text) {
   if (!text || text.trim() === '') {
     return '<p class="loading">暂无内容</p>';
@@ -50,7 +56,7 @@ function parseDigest(text) {
       currentBuilder = builderMatch[1];
       const role = builderMatch[2];
       const initials = nameMap[currentBuilder] || currentBuilder.substring(0, 2).toUpperCase();
-      html += `<div class="builder-card"><div class="builder-header"><div class="builder-avatar">${initials}</div><div class="builder-info"><div class="builder-name">${currentBuilder}</div><div class="builder-role">${role}</div></div></div><div class="builder-content">`;
+      html += `<div class="builder-card"><div class="builder-header"><div class="builder-avatar">${escapeHtml(initials)}</div><div class="builder-info"><div class="builder-name">${escapeHtml(currentBuilder)}</div><div class="builder-role">${escapeHtml(role)}</div></div></div><div class="builder-content">`;
       contentLines = [];
       continue;
     }
@@ -58,7 +64,7 @@ function parseDigest(text) {
     // Tweet/post link
     const linkMatch = l.match(/^(https?:\/\/[^\s]+)$/);
     if (linkMatch && currentBuilder) {
-      contentLines.push(`<a href="${linkMatch[1]}" class="builder-link" target="_blank">↗ 查看原文</a>`);
+      contentLines.push(`<a href="${escapeHtml(linkMatch[1])}" class="builder-link" target="_blank" rel="noopener noreferrer">↗ 查看原文</a>`);
       continue;
     }
     
@@ -66,8 +72,8 @@ function parseDigest(text) {
     if (currentBuilder && l) {
       // Skip section headers
       if (l.startsWith('## ') || l.startsWith('# ')) continue;
-      // Handle bold text
-      let processed = l.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      // Handle bold text - escape first, then apply markdown
+      let processed = escapeHtml(l).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
       contentLines.push('<p>' + processed + '</p>');
     }
   }
@@ -144,33 +150,36 @@ async function loadArchive() {
     if (!response || !response.ok) {
       response = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(apiUrl));
     }
-    const files = await response.json();
-      const digests = files
-        .filter(f => f.name.endsWith('.md'))
-        .map(f => f.name.replace('.md', ''))
-        .sort((a, b) => b.localeCompare(a));
-      
-      if (digests.length === 0) {
-        listEl.innerHTML = '<p class="loading">暂无历史记录</p>';
-        return;
-      }
-      
-      listEl.innerHTML = digests.map(date => 
-        `<a href="#" class="archive-item" data-date="${date}">
-          <span class="archive-date">${formatDate(date)}</span>
-          <span class="archive-arrow">→</span>
-        </a>`
-      ).join('');
-      
-      listEl.querySelectorAll('.archive-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-          e.preventDefault();
-          showDigest(item.dataset.date);
-        });
-      });
-    } else {
+    
+    if (!response || !response.ok) {
       listEl.innerHTML = '<p class="loading">加载失败</p>';
+      return;
     }
+    
+    const files = await response.json();
+    const digests = files
+      .filter(f => f.name.endsWith('.md'))
+      .map(f => f.name.replace('.md', ''))
+      .sort((a, b) => b.localeCompare(a));
+    
+    if (digests.length === 0) {
+      listEl.innerHTML = '<p class="loading">暂无历史记录</p>';
+      return;
+    }
+    
+    listEl.innerHTML = digests.map(date => 
+      `<a href="#" class="archive-item" data-date="${date}">
+        <span class="archive-date">${formatDate(date)}</span>
+        <span class="archive-arrow">→</span>
+      </a>`
+    ).join('');
+    
+    listEl.querySelectorAll('.archive-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        showDigest(item.dataset.date);
+      });
+    });
   } catch (e) {
     console.error('Archive error:', e);
     listEl.innerHTML = '<p class="loading">加载失败</p>';

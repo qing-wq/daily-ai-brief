@@ -167,6 +167,7 @@ body {
   padding: 28px;
   transition: all 0.2s ease;
   box-shadow: var(--shadow);
+  will-change: transform;
 }
 
 .builder-card:hover {
@@ -366,8 +367,36 @@ body {
   text-decoration: underline;
 }
 
+/* Performance optimizations */
+.loading-spinner {
+  will-change: transform;
+}
+
 /* Responsive */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 20px;
+  }
+  
+  .hero-title {
+    font-size: 34px;
+  }
+  
+  .nav-links {
+    gap: 2px;
+  }
+  
+  .nav-link {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+}
+
 @media (max-width: 640px) {
+  .container {
+    padding: 0 16px;
+  }
+  
   .hero-title {
     font-size: 30px;
   }
@@ -388,5 +417,9 @@ body {
   .builder-avatar {
     width: 40px;
     height: 40px;
+  }
+  
+  .logo-text {
+    font-size: 15px;
   }
 }
