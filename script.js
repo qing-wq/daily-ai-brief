@@ -87,17 +87,20 @@ function parseDigest(text) {
 }
 
 async function loadContent(url) {
+  // Try direct fetch first (works if CSP allows it)
   try {
-    const response = await fetch(url, {
-      method: 'GET',
-      mode: 'cors'
-    });
-    if (!response.ok) throw new Error('HTTP ' + response.status);
-    return await response.text();
-  } catch (e) {
-    console.error('Fetch error:', e);
-    return null;
-  }
+    const response = await fetch(url);
+    if (response.ok) return await response.text();
+  } catch (e) {}
+  
+  // Fallback: use CORS proxy
+  try {
+    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+    const response = await fetch(proxyUrl);
+    if (response.ok) return await response.text();
+  } catch (e) {}
+  
+  return null;
 }
 
 async function loadTodayDigest() {
@@ -136,10 +139,12 @@ async function loadArchive() {
   listEl.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>加载中...</p></div>';
   
   try {
-    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DIGESTS_PATH}`;
-    const response = await fetch(url, { mode: 'cors' });
-    if (response.ok) {
-      const files = await response.json();
+    const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DIGESTS_PATH}`;
+    let response = await fetch(apiUrl).catch(() => null);
+    if (!response || !response.ok) {
+      response = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(apiUrl));
+    }
+    const files = await response.json();
       const digests = files
         .filter(f => f.name.endsWith('.md'))
         .map(f => f.name.replace('.md', ''))
