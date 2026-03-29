@@ -46,8 +46,8 @@ function parseDigest(text) {
     // Skip empty lines, separators, and footer
     if (!l || l.startsWith('---') || l.startsWith('Generated') || l.startsWith('*本期')) continue;
     
-    // Builder section header
-    const builderMatch = l.match(/^\*\*(.+?)\*\*\s*[-–]\s*(.+)$/);
+    // Builder section header (支持 hyphen-, en dash–, em dash—)
+    const builderMatch = l.match(/^\*\*(.+?)\*\*\s*[-–—]\s*(.+)$/);
     if (builderMatch) {
       // Close previous builder
       if (currentBuilder && contentLines.length > 0) {
