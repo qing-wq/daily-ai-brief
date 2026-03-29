@@ -223,5 +223,15 @@ function setupNavigation() {
 
 document.addEventListener('DOMContentLoaded', () => {
   setupNavigation();
+  
+  // Try to load embedded digest first (from build.js)
+  if (window.DIGEST_CONTENT) {
+    try {
+      document.getElementById('today-content').innerHTML = parseDigest(window.DIGEST_CONTENT);
+      return;
+    } catch (e) {}
+  }
+  
+  // Fallback to fetch if no embedded data
   loadTodayDigest();
 });
