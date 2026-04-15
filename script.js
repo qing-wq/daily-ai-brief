@@ -24,10 +24,12 @@ function escapeHtml(text) {
 
 function parseDigest(text) {
   if (!text || text.trim() === '') {
+    console.error('parseDigest: empty text');
     return '<p class="loading">暂无内容</p>';
   }
   
   const lines = text.split('\n');
+  console.log('parseDigest: processing', lines.length, 'lines');
   let html = '';
   let currentBuilder = null;
   let contentLines = [];
@@ -49,6 +51,7 @@ function parseDigest(text) {
     // Builder section header (支持 hyphen-, en dash–, em dash—)
     const builderMatch = l.match(/^\*\*(.+?)\*\*\s*[-–—]\s*(.+)$/);
     if (builderMatch) {
+      console.log('Found builder:', builderMatch[1]);
       // Close previous builder
       if (currentBuilder && contentLines.length > 0) {
         html += '<div class="builder-content">' + contentLines.join('') + '</div></div></div>';
@@ -56,7 +59,15 @@ function parseDigest(text) {
       currentBuilder = builderMatch[1];
       const role = builderMatch[2];
       const initials = nameMap[currentBuilder] || currentBuilder.substring(0, 2).toUpperCase();
-      html += `<div class="builder-card"><div class="builder-header"><div class="builder-avatar">${escapeHtml(initials)}</div><div class="builder-info"><div class="builder-name">${escapeHtml(currentBuilder)}</div><div class="builder-role">${escapeHtml(role)}</div></div></div><div class="builder-content">`;
+      try {
+        const escapedInitials = escapeHtml(initials);
+        const escapedBuilder = escapeHtml(currentBuilder);
+        const escapedRole = escapeHtml(role);
+        html += `<div class="builder-card"><div class="builder-header"><div class="builder-avatar">${escapedInitials}</div><div class="builder-info"><div class="builder-name">${escapedBuilder}</div><div class="builder-role">${escapedRole}</div></div></div><div class="builder-content">`;
+      } catch (e) {
+        console.error('Error escaping HTML:', e);
+        html += `<div class="builder-card"><div class="builder-header"><div class="builder-avatar">${initials}</div><div class="builder-info"><div class="builder-name">${currentBuilder}</div><div class="builder-role">${role}</div></div></div><div class="builder-content">`;
+      }
       contentLines = [];
       continue;
     }
@@ -89,7 +100,10 @@ function parseDigest(text) {
     html += '<div class="stats"><div class="stat"><div class="stat-value">' + statsMatch[1] + '</div><div class="stat-label">Builders</div></div><div class="stat"><div class="stat-value">' + statsMatch[2] + '</div><div class="stat-label">推文</div></div></div>';
   }
 
-  return html || '<p class="loading">解析失败</p>';
+  console.log('parseDigest: html length =', html.length);
+  const result = html || '<p class="loading">解析失败</p>';
+  console.log('parseDigest: returning', result.substring(0, 100));
+  return result;
 }
 
 async function loadContent(url) {
@@ -241,9 +255,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Try to load embedded digest first (from build.js)
   if (window.DIGEST_CONTENT) {
     try {
+      console.log('window.DIGEST_CONTENT type:', typeof window.DIGEST_CONTENT);
+      console.log('window.DIGEST_CONTENT length:', window.DIGEST_CONTENT.length);
+      console.log('window.DIGEST_CONTENT preview:', window.DIGEST_CONTENT.substring(0, 200));
       document.getElementById('today-content').innerHTML = parseDigest(window.DIGEST_CONTENT);
       return;
-    } catch (e) {}
+    } catch (e) {
+      console.error('Error parsing embedded content:', e);
+    }
   }
   
   // Fallback to fetch if no embedded data
