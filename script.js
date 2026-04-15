@@ -16,20 +16,12 @@ function formatDate(dateStr) {
   return date.toLocaleDateString('zh-CN', options);
 }
 
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
 function parseDigest(text) {
   if (!text || text.trim() === '') {
-    console.error('parseDigest: empty text');
     return '<p class="loading">暂无内容</p>';
   }
   
   const lines = text.split('\n');
-  console.log('parseDigest: processing', lines.length, 'lines');
   let html = '';
   let currentBuilder = null;
   let contentLines = [];
@@ -48,10 +40,9 @@ function parseDigest(text) {
     // Skip empty lines, separators, and footer
     if (!l || l.startsWith('---') || l.startsWith('Generated') || l.startsWith('*本期')) continue;
     
-    // Builder section header (支持 hyphen-, en dash–, em dash—)
-    const builderMatch = l.match(/^\*\*(.+?)\*\*\s*[-–—]\s*(.+)$/);
+    // Builder section header
+    const builderMatch = l.match(/^\*\*(.+?)\*\*\s*[-–]\s*(.+)$/);
     if (builderMatch) {
-      console.log('Found builder:', builderMatch[1]);
       // Close previous builder
       if (currentBuilder && contentLines.length > 0) {
         html += '<div class="builder-content">' + contentLines.join('') + '</div></div></div>';
@@ -59,15 +50,7 @@ function parseDigest(text) {
       currentBuilder = builderMatch[1];
       const role = builderMatch[2];
       const initials = nameMap[currentBuilder] || currentBuilder.substring(0, 2).toUpperCase();
-      try {
-        const escapedInitials = escapeHtml(initials);
-        const escapedBuilder = escapeHtml(currentBuilder);
-        const escapedRole = escapeHtml(role);
-        html += `<div class="builder-card"><div class="builder-header"><div class="builder-avatar">${escapedInitials}</div><div class="builder-info"><div class="builder-name">${escapedBuilder}</div><div class="builder-role">${escapedRole}</div></div></div><div class="builder-content">`;
-      } catch (e) {
-        console.error('Error escaping HTML:', e);
-        html += `<div class="builder-card"><div class="builder-header"><div class="builder-avatar">${initials}</div><div class="builder-info"><div class="builder-name">${currentBuilder}</div><div class="builder-role">${role}</div></div></div><div class="builder-content">`;
-      }
+      html += `<div class="builder-card"><div class="builder-header"><div class="builder-avatar">${initials}</div><div class="builder-info"><div class="builder-name">${currentBuilder}</div><div class="builder-role">${role}</div></div></div><div class="builder-content">`;
       contentLines = [];
       continue;
     }
@@ -75,7 +58,7 @@ function parseDigest(text) {
     // Tweet/post link
     const linkMatch = l.match(/^(https?:\/\/[^\s]+)$/);
     if (linkMatch && currentBuilder) {
-      contentLines.push(`<a href="${escapeHtml(linkMatch[1])}" class="builder-link" target="_blank" rel="noopener noreferrer">↗ 查看原文</a>`);
+      contentLines.push(`<a href="${linkMatch[1]}" class="builder-link" target="_blank">↗ 查看原文</a>`);
       continue;
     }
     
@@ -83,7 +66,7 @@ function parseDigest(text) {
     if (currentBuilder && l) {
       // Skip section headers
       if (l.startsWith('## ') || l.startsWith('# ')) continue;
-      // Handle bold text - simple markdown processing without breaking HTML
+      // Handle bold text
       let processed = l.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
       contentLines.push('<p>' + processed + '</p>');
     }
@@ -100,10 +83,7 @@ function parseDigest(text) {
     html += '<div class="stats"><div class="stat"><div class="stat-value">' + statsMatch[1] + '</div><div class="stat-label">Builders</div></div><div class="stat"><div class="stat-value">' + statsMatch[2] + '</div><div class="stat-label">推文</div></div></div>';
   }
 
-  console.log('parseDigest: html length =', html.length);
-  const result = html || '<p class="loading">解析失败</p>';
-  console.log('parseDigest: returning', result.substring(0, 100));
-  return result;
+  return html || '<p class="loading">解析失败</p>';
 }
 
 async function loadContent(url) {
@@ -159,46 +139,38 @@ async function loadArchive() {
   listEl.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>加载中...</p></div>';
   
   try {
-    // 优先使用CORS代理避免GitHub API速率限制
     const apiUrl = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DIGESTS_PATH}`;
-    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(apiUrl);
-    
-    let response = await fetch(proxyUrl).catch(() => null);
-    
-    // 如果代理失败，尝试直接调用API
+    let response = await fetch(apiUrl).catch(() => null);
     if (!response || !response.ok) {
-      response = await fetch(apiUrl).catch(() => null);
+      response = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(apiUrl));
     }
-    
-    if (!response || !response.ok) {
-      listEl.innerHTML = '<p class="loading">加载失败</p>';
-      return;
-    }
-    
     const files = await response.json();
-    const digests = files
-      .filter(f => f.name.endsWith('.md'))
-      .map(f => f.name.replace('.md', ''))
-      .sort((a, b) => b.localeCompare(a));
-    
-    if (digests.length === 0) {
-      listEl.innerHTML = '<p class="loading">暂无历史记录</p>';
-      return;
-    }
-    
-    listEl.innerHTML = digests.map(date => 
-      `<a href="#" class="archive-item" data-date="${date}">
-        <span class="archive-date">${formatDate(date)}</span>
-        <span class="archive-arrow">→</span>
-      </a>`
-    ).join('');
-    
-    listEl.querySelectorAll('.archive-item').forEach(item => {
-      item.addEventListener('click', (e) => {
-        e.preventDefault();
-        showDigest(item.dataset.date);
+      const digests = files
+        .filter(f => f.name.endsWith('.md'))
+        .map(f => f.name.replace('.md', ''))
+        .sort((a, b) => b.localeCompare(a));
+      
+      if (digests.length === 0) {
+        listEl.innerHTML = '<p class="loading">暂无历史记录</p>';
+        return;
+      }
+      
+      listEl.innerHTML = digests.map(date => 
+        `<a href="#" class="archive-item" data-date="${date}">
+          <span class="archive-date">${formatDate(date)}</span>
+          <span class="archive-arrow">→</span>
+        </a>`
+      ).join('');
+      
+      listEl.querySelectorAll('.archive-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.preventDefault();
+          showDigest(item.dataset.date);
+        });
       });
-    });
+    } else {
+      listEl.innerHTML = '<p class="loading">加载失败</p>';
+    }
   } catch (e) {
     console.error('Archive error:', e);
     listEl.innerHTML = '<p class="loading">加载失败</p>';
@@ -255,14 +227,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Try to load embedded digest first (from build.js)
   if (window.DIGEST_CONTENT) {
     try {
-      console.log('window.DIGEST_CONTENT type:', typeof window.DIGEST_CONTENT);
-      console.log('window.DIGEST_CONTENT length:', window.DIGEST_CONTENT.length);
-      console.log('window.DIGEST_CONTENT preview:', window.DIGEST_CONTENT.substring(0, 200));
       document.getElementById('today-content').innerHTML = parseDigest(window.DIGEST_CONTENT);
       return;
-    } catch (e) {
-      console.error('Error parsing embedded content:', e);
-    }
+    } catch (e) {}
   }
   
   // Fallback to fetch if no embedded data
